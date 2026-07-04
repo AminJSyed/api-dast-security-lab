@@ -1,0 +1,104 @@
+name: Security CI
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-security:
+    name: Python Security Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install bandit pip-audit semgrep
+
+      - name: Compile Python files
+        run: |
+          python -m compileall app python-practice
+
+      - name: Run Bandit security scan
+        run: |
+          bandit -r app -ll
+
+      - name: Run pip-audit dependency scan
+        run: |
+          pip-audit -r requirements.txt
+
+      - name: Run Semgrep SAST scan
+        run: |
+          semgrep scan \
+            --config p/python \
+            --config p/secrets \
+            app scripts
+
+  container-security:
+    name: Container Security Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t api-dast-security-lab:ci .
+
+      - name: Run Trivy image scan
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: api-dast-security-lab:ci
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 0
+
+  authenticated-dast:
+    name: Authenticated DAST
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Start API
+        run: |
+          cp .env.example .env
+          docker compose up -d --build
+          sleep 10
+
+      - name: Check API health
+        run: |
+          curl http://localhost:8010/health
+
+      - name: Run authenticated ZAP scan
+        run: |
+          ./scripts/run-zap-auth-api-scan.sh \
+            reports/zap-ci-auth-api-report.html || true
+
+      - name: Show generated reports
+        run: |
+          ls -la reports

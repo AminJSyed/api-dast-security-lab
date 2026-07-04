@@ -205,3 +205,25 @@ Run the authenticated scan:
 See detailed notes:
 
 docs/authenticated-dast-summary.md
+
+## Scenario: CI/CD Security Pipeline
+
+This lab includes a GitHub Actions security pipeline.
+
+The pipeline runs:
+
+- Python syntax validation
+- Bandit Python security scan
+- pip-audit dependency scan
+- Semgrep SAST scan
+- Docker image build
+- Trivy container image scan
+- Manual authenticated OWASP ZAP DAST scan
+
+Workflow file:
+
+.github/workflows/security-ci.yml
+
+See detailed notes:
+
+docs/security-ci-summary.md
