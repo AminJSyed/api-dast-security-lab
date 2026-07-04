@@ -140,3 +140,18 @@ Run the scenario test:
 See detailed notes:
 
 docs/idor-bola-summary.md
+
+## Scenario: Python Log Analysis
+
+This lab includes a Python-based brute-force detection exercise.
+
+The script reads sample login logs, counts failed login attempts per
+IP address, and reports IPs that exceed the configured threshold.
+
+Run the exercise:
+
+python3 python-practice/bruteforce_detector.py
+
+See detailed notes:
+
+docs/python-log-analysis-summary.md
