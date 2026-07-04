@@ -118,3 +118,25 @@ preparation, and portfolio demonstration.
 
 The current code represents the remediated state after the DAST
 findings were fixed.
+
+## Scenario: Object-Level Authorization
+
+This lab includes an IDOR / BOLA scenario for API authorization
+testing.
+
+The booking endpoint requires a bearer token and enforces ownership
+before returning booking data.
+
+Validation cases:
+
+- No token returns 401 Unauthorized
+- Valid owner token returns 200 OK
+- Valid token for another user returns 403 Forbidden
+
+Run the scenario test:
+
+./scripts/test-idor-bola.sh
+
+See detailed notes:
+
+docs/idor-bola-summary.md

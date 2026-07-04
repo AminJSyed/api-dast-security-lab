@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
 
 app = FastAPI(
     title="API DAST Security Lab",
@@ -8,7 +9,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Intentionally permissive CORS for DAST learning
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,21 +31,63 @@ BOOKINGS = {
     "1001": {
         "booking_id": "1001",
         "customer": "Amin",
+        "owner_id": "amin",
         "route": "Frankfurt to Berlin",
         "status": "CONFIRMED"
     },
     "1002": {
         "booking_id": "1002",
         "customer": "Test User",
+        "owner_id": "test-user",
         "route": "Munich to Hamburg",
         "status": "PENDING"
     }
 }
 
 
+TOKENS = {
+    "token-amin": "amin",
+    "token-test": "test-user"
+}
+
+
+def public_booking(booking: dict):
+    return {
+        "booking_id": booking["booking_id"],
+        "customer": booking["customer"],
+        "route": booking["route"],
+        "status": booking["status"]
+    }
+
+
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+def get_current_user(authorization: str | None):
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Authorization header"
+        )
+
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authorization scheme"
+        )
+
+    token = authorization.replace("Bearer ", "")
+    user_id = TOKENS.get(token)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+
+    return user_id
 
 
 @app.get("/")
@@ -62,7 +105,7 @@ def health():
 
 
 @app.get("/search")
-def search(query: str = Query(..., description="Search route or booking")):
+def search(query: str = Query(...)):
     return {
         "query": query,
         "result": f"You searched for: {query}"
@@ -70,24 +113,47 @@ def search(query: str = Query(..., description="Search route or booking")):
 
 
 @app.get("/booking/{booking_id}")
-def get_booking(booking_id: str):
+def get_booking(
+    booking_id: str,
+    authorization: str | None = Header(default=None)
+):
+    current_user = get_current_user(authorization)
+
     booking = BOOKINGS.get(booking_id)
 
     if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Booking not found"
+        )
 
-    return booking
+    if booking["owner_id"] != current_user:
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied for this booking"
+        )
+
+    return public_booking(booking)
 
 
 @app.post("/login")
 def login(payload: LoginRequest):
-    if payload.username == "admin" and payload.password == "admin123":
+    if payload.username == "amin" and payload.password == "amin123":
         return {
-            "access_token": "demo-insecure-token",
+            "access_token": "token-amin",
             "token_type": "bearer"
         }
 
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+    if payload.username == "test" and payload.password == "test123":
+        return {
+            "access_token": "token-test",
+            "token_type": "bearer"
+        }
+
+    raise HTTPException(
+        status_code=401,
+        detail="Invalid credentials"
+    )
 
 
 @app.get("/debug")
