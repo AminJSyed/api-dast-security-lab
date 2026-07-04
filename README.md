@@ -174,3 +174,19 @@ Run the scenario test:
 See detailed notes:
 
 docs/login-rate-limit-summary.md
+
+## Scenario: SSRF Protection
+
+This lab includes an SSRF protection scenario.
+
+The `/fetch-url` endpoint validates user-provided URLs before allowing
+them. It blocks localhost, loopback IPs, link-local addresses, cloud
+metadata endpoints, private destinations, and non-http schemes.
+
+Run the scenario test:
+
+./scripts/test-ssrf-protection.sh
+
+See detailed notes:
+
+docs/ssrf-protection-summary.md

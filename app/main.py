@@ -1,4 +1,7 @@
 from time import time
+from urllib.parse import urlparse
+import ipaddress
+import socket
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -98,6 +101,73 @@ def clear_failed_logins(ip_address: str):
     FAILED_LOGIN_ATTEMPTS.pop(ip_address, None)
 
 
+def resolve_hostname(hostname: str):
+    try:
+        return [ipaddress.ip_address(hostname)]
+    except ValueError:
+        pass
+
+    try:
+        results = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to resolve hostname"
+        )
+
+    addresses = []
+
+    for result in results:
+        ip_value = result[4][0]
+        addresses.append(ipaddress.ip_address(ip_value))
+
+    return list(set(addresses))
+
+
+def validate_outbound_url(raw_url: str):
+    parsed = urlparse(raw_url)
+
+    if parsed.scheme not in {"http", "https"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Only http and https URLs are allowed"
+        )
+
+    if not parsed.hostname:
+        raise HTTPException(
+            status_code=400,
+            detail="URL must include a hostname"
+        )
+
+    hostname = parsed.hostname.lower()
+
+    blocked_hosts = {
+        "localhost",
+        "metadata.google.internal"
+    }
+
+    if hostname in blocked_hosts:
+        raise HTTPException(
+            status_code=400,
+            detail="Blocked internal destination"
+        )
+
+    addresses = resolve_hostname(hostname)
+
+    for address in addresses:
+        if not address.is_global:
+            raise HTTPException(
+                status_code=400,
+                detail="Blocked internal destination"
+            )
+
+    return {
+        "scheme": parsed.scheme,
+        "hostname": hostname,
+        "path": parsed.path or "/"
+    }
+
+
 def public_booking(booking: dict):
     return {
         "booking_id": booking["booking_id"],
@@ -110,6 +180,10 @@ def public_booking(booking: dict):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+class FetchUrlRequest(BaseModel):
+    url: str
 
 
 def get_current_user(authorization: str | None):
@@ -156,6 +230,23 @@ def search(query: str = Query(...)):
     return {
         "query": query,
         "result": f"You searched for: {query}"
+    }
+
+
+@app.post("/fetch-url")
+def fetch_url(
+    payload: FetchUrlRequest,
+    authorization: str | None = Header(default=None)
+):
+    get_current_user(authorization)
+
+    target = validate_outbound_url(payload.url)
+
+    return {
+        "status": "allowed",
+        "message": "URL passed SSRF validation.",
+        "note": "Network fetch is disabled in this lab.",
+        "target": target
     }
 
 
