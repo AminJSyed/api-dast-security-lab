@@ -190,3 +190,18 @@ Run the scenario test:
 See detailed notes:
 
 docs/ssrf-protection-summary.md
+
+## Scenario: Authenticated API DAST
+
+This lab includes an authenticated API DAST scenario.
+
+The ZAP scan script adds a bearer token to requests so protected API
+endpoints can be tested.
+
+Run the authenticated scan:
+
+./scripts/run-zap-auth-api-scan.sh reports/zap-auth-api-report.html
+
+See detailed notes:
+
+docs/authenticated-dast-summary.md
