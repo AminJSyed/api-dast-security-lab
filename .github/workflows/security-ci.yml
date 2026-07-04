@@ -130,10 +130,31 @@ jobs:
           curl http://localhost:8010/health
 
       - name: Run authenticated ZAP scan
-        continue-on-error: true
         run: |
+          set +e
+
           ./scripts/run-zap-auth-api-scan.sh \
             reports/zap-ci-auth-api-report.html
+
+          ZAP_EXIT_CODE=$?
+
+          set -e
+
+          echo "ZAP exit code: $ZAP_EXIT_CODE"
+
+          if [ ! -f reports/zap-ci-auth-api-report.html ]; then
+            echo "ZAP report was not generated."
+            exit 1
+          fi
+
+          if [ "$ZAP_EXIT_CODE" -eq 0 ]; then
+            echo "ZAP scan completed successfully."
+            exit 0
+          fi
+
+          echo "ZAP completed with a non-zero exit code."
+          echo "The report was generated and uploaded for review."
+          exit 0
 
       - name: Upload ZAP DAST report
         if: always()
