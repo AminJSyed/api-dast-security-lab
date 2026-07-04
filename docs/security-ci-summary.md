@@ -80,3 +80,41 @@ A CI/CD security pipeline helps detect security issues early.
 
 It should combine SAST, dependency scanning, container scanning,
 secrets scanning, and controlled DAST.
+
+## Report Artifacts
+
+The pipeline uploads scan outputs as GitHub Actions artifacts.
+
+Artifacts generated:
+
+- python-security-reports
+- trivy-image-report
+- zap-authenticated-dast-report
+
+The Python security artifact includes:
+
+- python-compile-report.txt
+- bandit-report.json
+- pip-audit-report.json
+- semgrep-report.json
+
+The container security artifact includes:
+
+- trivy-image-report.txt
+
+The authenticated DAST artifact includes:
+
+- zap-ci-auth-api-report.html
+
+## Why Artifacts Matter
+
+Artifacts provide evidence of security checks performed during the
+pipeline run.
+
+They are useful for:
+
+- Reviewing findings
+- Sharing scan evidence
+- Interview demonstration
+- Audit-style documentation
+- Tracking remediation over time
