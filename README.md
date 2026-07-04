@@ -155,3 +155,22 @@ python3 python-practice/bruteforce_detector.py
 See detailed notes:
 
 docs/python-log-analysis-summary.md
+
+## Scenario: Login Rate Limiting
+
+This lab includes a login rate-limiting scenario to demonstrate
+basic brute-force protection.
+
+The login endpoint tracks failed login attempts per client IP.
+After three failed attempts, further login attempts are temporarily
+blocked with:
+
+429 Too Many Requests
+
+Run the scenario test:
+
+./scripts/test-login-rate-limit.sh
+
+See detailed notes:
+
+docs/login-rate-limit-summary.md

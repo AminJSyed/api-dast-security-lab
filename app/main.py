@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Header, HTTPException, Query
+from time import time
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -49,6 +50,52 @@ TOKENS = {
     "token-amin": "amin",
     "token-test": "test-user"
 }
+
+
+FAILED_LOGIN_ATTEMPTS = {}
+MAX_FAILED_ATTEMPTS = 3
+BLOCK_SECONDS = 60
+
+
+def get_client_ip(request: Request):
+    forwarded_for = request.headers.get("x-forwarded-for")
+
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+
+    return request.client.host
+
+
+def is_blocked(ip_address: str):
+    record = FAILED_LOGIN_ATTEMPTS.get(ip_address)
+
+    if not record:
+        return False
+
+    blocked_until = record.get("blocked_until", 0)
+
+    return time() < blocked_until
+
+
+def record_failed_login(ip_address: str):
+    record = FAILED_LOGIN_ATTEMPTS.get(
+        ip_address,
+        {
+            "count": 0,
+            "blocked_until": 0
+        }
+    )
+
+    record["count"] += 1
+
+    if record["count"] >= MAX_FAILED_ATTEMPTS:
+        record["blocked_until"] = time() + BLOCK_SECONDS
+
+    FAILED_LOGIN_ATTEMPTS[ip_address] = record
+
+
+def clear_failed_logins(ip_address: str):
+    FAILED_LOGIN_ATTEMPTS.pop(ip_address, None)
 
 
 def public_booking(booking: dict):
@@ -137,23 +184,36 @@ def get_booking(
 
 
 @app.post("/login")
-def login(payload: LoginRequest):
+def login(payload: LoginRequest, request: Request):
+    ip_address = get_client_ip(request)
+
+    if is_blocked(ip_address):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed login attempts"
+        )
+
     if payload.username == "amin" and payload.password == "amin123":
+        clear_failed_logins(ip_address)
         return {
             "access_token": "token-amin",
             "token_type": "bearer"
         }
 
     if payload.username == "test" and payload.password == "test123":
+        clear_failed_logins(ip_address)
         return {
             "access_token": "token-test",
             "token_type": "bearer"
         }
 
+    record_failed_login(ip_address)
+
     raise HTTPException(
         status_code=401,
         detail="Invalid credentials"
     )
+
 
 
 @app.get("/debug")
