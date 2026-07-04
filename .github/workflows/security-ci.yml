@@ -34,24 +34,45 @@ jobs:
           pip install -r requirements.txt
           pip install bandit pip-audit semgrep
 
+      - name: Create report folder
+        run: |
+          mkdir -p ci-reports
+
       - name: Compile Python files
         run: |
-          python -m compileall app python-practice
+          python -m compileall app python-practice \
+            | tee ci-reports/python-compile-report.txt
 
       - name: Run Bandit security scan
         run: |
-          bandit -r app -ll
+          bandit -r app \
+            -ll \
+            -f json \
+            -o ci-reports/bandit-report.json
 
       - name: Run pip-audit dependency scan
         run: |
-          pip-audit -r requirements.txt
+          pip-audit -r requirements.txt \
+            -f json \
+            -o ci-reports/pip-audit-report.json
 
       - name: Run Semgrep SAST scan
         run: |
           semgrep scan \
             --config p/python \
             --config p/secrets \
+            --json \
+            --output ci-reports/semgrep-report.json \
             app scripts
+
+      - name: Upload Python security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-security-reports
+          path: ci-reports/
+          if-no-files-found: warn
+          retention-days: 14
 
   container-security:
     name: Container Security Checks
@@ -60,6 +81,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Create report folder
+        run: |
+          mkdir -p ci-reports
 
       - name: Build Docker image
         run: |
@@ -71,9 +96,19 @@ jobs:
         with:
           image-ref: api-dast-security-lab:ci
           format: table
+          output: ci-reports/trivy-image-report.txt
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: 0
+          exit-code: "0"
+
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-report
+          path: ci-reports/trivy-image-report.txt
+          if-no-files-found: warn
+          retention-days: 14
 
   authenticated-dast:
     name: Authenticated DAST
@@ -95,10 +130,16 @@ jobs:
           curl http://localhost:8010/health
 
       - name: Run authenticated ZAP scan
+        continue-on-error: true
         run: |
           ./scripts/run-zap-auth-api-scan.sh \
-            reports/zap-ci-auth-api-report.html || true
+            reports/zap-ci-auth-api-report.html
 
-      - name: Show generated reports
-        run: |
-          ls -la reports
+      - name: Upload ZAP DAST report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-authenticated-dast-report
+          path: reports/zap-ci-auth-api-report.html
+          if-no-files-found: warn
+          retention-days: 14

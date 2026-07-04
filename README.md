@@ -1,5 +1,7 @@
 # API DAST Security Lab
 
+[![Security CI](https://github.com/AminJSyed/api-dast-security-lab/actions/workflows/security-ci.yml/badge.svg?branch=main)](https://github.com/AminJSyed/api-dast-security-lab/actions/workflows/security-ci.yml)
+
 A hands-on API security lab for practicing Dynamic Application
 Security Testing with OWASP ZAP.
 

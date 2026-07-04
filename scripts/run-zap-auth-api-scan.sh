@@ -8,7 +8,17 @@ REPORT_NAME="${1:-zap-auth-api-report.html}"
 
 TARGET_URL="http://host.docker.internal:${API_PORT}/openapi.json"
 
+DOCKER_ARGS=()
+
+if [ "${CI:-}" = "true" ]; then
+  DOCKER_ARGS+=(
+    --add-host
+    host.docker.internal:host-gateway
+  )
+fi
+
 docker run --rm -t \
+  "${DOCKER_ARGS[@]}" \
   -v "$(pwd):/zap/wrk:rw" \
   zaproxy/zap-stable zap-api-scan.py \
   -t "$TARGET_URL" \
